@@ -41,7 +41,7 @@ const Hero = () => {
                             alt="Vintage books and a globe"
                             width={300}
                             height={300}
-                            className="obtain-contain"/>
+                            className="object-contain"/>
                     </div>
 
                     {/* Right Part */}

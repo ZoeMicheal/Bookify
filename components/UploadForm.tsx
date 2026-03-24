@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -52,6 +52,20 @@ const UploadForm = () => {
   const selectedPdf = watch('pdfFile');
   const selectedImage = watch('coverImage');
   const selectedVoice = watch('voice');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedImage) {
+      const url = URL.createObjectURL(selectedImage);
+      setPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+        setPreviewUrl(null);
+      };
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [selectedImage]);
 
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
@@ -154,11 +168,13 @@ const UploadForm = () => {
             {selectedImage ? (
               <div className="flex flex-col items-center gap-2">
                 <div className="relative w-20 h-28 mb-2 shadow-md rounded overflow-hidden">
-                   <img 
-                    src={URL.createObjectURL(selectedImage)} 
-                    alt="Preview" 
-                    className="w-full h-full object-cover"
-                   />
+                   {previewUrl && (
+                     <img 
+                      src={previewUrl} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                     />
+                   )}
                 </div>
                 <p className="upload-dropzone-text">{selectedImage.name}</p>
                 <button 
@@ -241,7 +257,7 @@ const UploadForm = () => {
         {/* Submit Button */}
         <button
           type="submit"
-          className="form-btn w-full !bg-[#663820] text-white font-serif py-4 text-xl shadow-lg transition-all active:scale-[0.98]"
+          className="form-btn w-full bg-[#663820]! text-white font-serif py-4 text-xl shadow-lg transition-all active:scale-[0.98]"
         >
           Begin Synthesis
         </button>
