@@ -537,10 +537,10 @@
     @apply w-8 h-8 min-w-8 min-h-8 rounded-full bg-[#fff6e5] border border-[var(--text-primary)] text-[var(--text-primary)] flex items-center justify-center font-semibold text-sm;
   }
   .library-step-title {
-    @apply font-semibold text-base text-[#222c37] leading-6 block;
+    @apply font-semibold text-base text-[#222c37] leading-6;
   }
   .library-step-description {
-    @apply font-normal text-sm text-gray-400 leading-5 block;
+    @apply font-normal text-sm text-[#222c37] leading-5;
   }
   .library-search-wrapper {
     @apply flex items-center bg-white border border-[var(--border-subtle)] rounded-lg overflow-hidden w-full sm:w-80;

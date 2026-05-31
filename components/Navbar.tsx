@@ -17,7 +17,7 @@ const Navbar = () => {
     const { user, isLoaded } = useUser(); // Corrected import and destructuring
 
     return (
-        <header className="w-full fixed z-50 bg-(--bg-primary)">
+        <header className="w-full fixed z-50 bg-[--bg-primary]">
             <div className="wrapper navbar-height py-4 flex justify-between items-center">
                 <Link href="/" className="flex gap-0.5 items-center">
                     <Image src={Logo} alt="Bookify" width={42} height={26} />
@@ -40,11 +40,16 @@ const Navbar = () => {
                             <SignUpButton />
                         </Show>
                         <Show when="signed-in">
+                            {isLoaded && user && ( // Conditionally render user's name
+                                <span className="nav-user-name">
+                                    Hi, {user.firstName}
+                                </span>
+                            )}
                             <div className="nav-user-link">
                                 <UserButton />
                                 {user?.firstName && (
                                     <Link href="/subscriptions" className="nav-user-name">
-                                        Hi, {user.firstName}
+                                        {user.firstName}
                                     </Link>
                                 )}
                             </div>

@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 const Hero = () => {
     return (
-        <section className="wrapper pt-28 mb-10 md:mb-16">
+        <section className="wrapper mb-10 md:mb-16">
             <div className="library-hero-card">
                 <div className="library-hero-content">
                     {/* Left Part */}
@@ -41,7 +41,7 @@ const Hero = () => {
                             alt="Vintage books and a globe"
                             width={300}
                             height={300}
-                            className="object-contain"/>
+                            className="obtain-contain"/>
                     </div>
 
                     {/* Right Part */}
