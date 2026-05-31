@@ -151,11 +151,16 @@ const UploadForm = () => {
       });
       
       if(!book.success) throw new Error("Failed to create book");
-      
-      if(book.alreadyExists) {
+
+      if (book.alreadyExists) {
         toast.info("Book with same title already exists.");
-        reset()
-        router.push(`/books/${existsCheck.book.slug}`);
+        reset();
+
+        const slug = existsCheck?.book?.slug;
+        if (slug) {
+          router.push(`/books/${slug}`);
+        }
+
         return;
       }
       

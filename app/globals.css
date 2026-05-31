@@ -239,6 +239,20 @@
   .loading-progress-status {
     @apply w-2 h-2 text-[var(--text-secondary)] bg-[var(--success)] rounded-full animate-pulse;
   }
+  .loading-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .loading-spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-status {
+    opacity: 0.8;
+  }
   .select-trigger {
     @apply !w-full !h-12 rounded-lg;
   }

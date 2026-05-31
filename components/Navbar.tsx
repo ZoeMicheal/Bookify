@@ -40,16 +40,11 @@ const Navbar = () => {
                             <SignUpButton />
                         </Show>
                         <Show when="signed-in">
-                            {isLoaded && user && ( // Conditionally render user's name
-                                <span className="nav-user-name">
-                                    Hi, {user.firstName}
-                                </span>
-                            )}
                             <div className="nav-user-link">
                                 <UserButton />
                                 {user?.firstName && (
                                     <Link href="/subscriptions" className="nav-user-name">
-                                        {user.firstName}
+                                        Hi, {user.firstName}
                                     </Link>
                                 )}
                             </div>
