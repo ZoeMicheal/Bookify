@@ -3,7 +3,6 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { DEFAULT_VOICE, voiceOptions } from './constants';
 
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -116,18 +115,18 @@ export async function parsePDFFile(file: File) {
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
+
     const context = canvas.getContext('2d');
 
     if (!context) {
-      // @ts-ignore
       throw new Error('Could not get canvas context');
     }
 
     await firstPage.render({
-      canvas: canvas,
+      canvas,
       canvasContext: context,
-      viewport: viewport,
-    }).promise;
+      viewport,
+    } as any).promise;
 
     // Convert canvas to data URL
     const coverDataURL = canvas.toDataURL('image/png');
