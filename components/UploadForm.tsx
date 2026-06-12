@@ -7,30 +7,35 @@ import * as z from 'zod';
 import { Upload, Image as ImageIcon, X, CheckCircle2, Play } from 'lucide-react';
 import { MAX_FILE_SIZE, ACCEPTED_PDF_TYPES, MAX_IMAGE_SIZE, ACCEPTED_IMAGE_TYPES, voiceOptions } from '@/lib/constants';
 import LoadingOverlay from '@/components/LoadingOverlay';
-import { cn } from '@/lib/utils';
+import {cn, parsePDFFile} from '@/lib/utils';
+import {useAuth} from "@clerk/nextjs";
+import { toast } from 'sonner';
+import {checkBookExists, createBook, deleteBookBlob, saveBookSegments} from "@/lib/actions/book.actions";
+import {useRouter} from "next/navigation";
+import {upload} from "@vercel/blob/client";
 
-const formSchema = z.object({
-  pdfFile: z
-    .custom<File>((val) => val instanceof File, 'PDF file is required')
-    .refine((file) => file.size <= MAX_FILE_SIZE, `PDF file must be less than 50MB`)
-    .refine((file) => ACCEPTED_PDF_TYPES.includes(file.type), 'Only .pdf files are accepted'),
-  coverImage: z
-    .custom<File | null>((val) => val === null || val instanceof File)
-    .optional()
-    .refine((file) => !file || file.size <= MAX_IMAGE_SIZE, `Cover image must be less than 10MB`)
-    .refine(
-      (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
-      'Only .jpg, .jpeg, .png and .webp formats are supported'
-    ),
-  title: z.string().min(1, 'Title is required'),
-  author: z.string().min(1, 'Author name is required'),
+export const UploadSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
+  author: z.string().min(1, 'Author name is required').max(100, 'Author name is too long'),
+  persona: z.string().optional(),
   voice: z.string().min(1, 'Please select a voice'),
+  pdfFile: z.instanceof(File).optional().refine((file) => file !== undefined, { message: "PDF file is required" }).refine((file) => file && file.size <= MAX_FILE_SIZE,
+      "File size must be less than 50MB").refine((file) => file && ACCEPTED_PDF_TYPES.includes(file.type), "Only PDF files are accepted"),
+  coverImage: z.instanceof(File).optional().refine((file) => {
+    if (!file) return true; // Allow undefined/null if optional
+    return file.size <= MAX_IMAGE_SIZE;
+  }, "Image size must be less than 10MB").refine((file) => {
+    if (!file) return true; // Allow undefined/null if optional
+    return ACCEPTED_IMAGE_TYPES.includes(file.type);
+  }, "Only .jpg, .jpeg, .png, and .webp formats are supported"),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof UploadSchema>;
 
 const UploadForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { userId } = useAuth();
+  const router = useRouter();
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,12 +44,16 @@ const UploadForm = () => {
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(UploadSchema),    
     defaultValues: {
       title: '',
       author: '',
+      persona: '',
+      pdfFile: undefined,
+      coverImage: undefined,
       voice: 'rachel',
     },
   });
@@ -68,12 +77,121 @@ const UploadForm = () => {
   }, [selectedImage]);
 
   const onSubmit = async (data: FormValues) => {
+    if(!userId) {
+      toast.error("Please sign in to upload books...");
+      return;
+    }
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    console.log(data);
-    setIsSubmitting(false);
+
+    // PostHod -> Track book upload
+
+    try {
+      const existsCheck = await checkBookExists(data.title);
+
+      if(existsCheck.exists && existsCheck.book) {
+        toast.info("Book with this title already exists.");
+        reset();
+        router.push(`/books/${existsCheck.book.slug}`);
+        return;
+      }
+
+      const fileTitle = data.title.replace(/\s+/g, '-').toLowerCase();
+      const pdfFile = data.pdfFile;
+
+      if (!pdfFile) {
+        toast.error("PDF file is required.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const parsedPDF = await parsePDFFile(pdfFile);
+
+      if(parsedPDF.content.length === 0) {
+        toast.error("Failed to parse PDF. Please try again with a different file.");
+        return;
+      }
+
+      const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+        contentType: 'application/pdf'
+      });
+      
+      let coverUrl: string | undefined;
+      
+      if(data.coverImage) {
+        const coverFile = data.coverImage;
+        const extension = coverFile.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+        const uploadedCoverBlob = await upload(`${fileTitle}_cover.${extension}`, coverFile, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+          contentType: coverFile.type
+        });
+        coverUrl = uploadedCoverBlob.url;
+      } else {
+        const response = await fetch(parsedPDF.cover);
+        const blob = await response.blob();
+
+        const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, blob, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+          contentType: 'image/png'
+        });
+        coverUrl = uploadedCoverBlob.url;
+      }
+
+      const book = await createBook({
+        clerkId: userId,
+        title: data.title,
+        author: data.author,
+        persona: data.persona,
+        fileURL: uploadedPdfBlob.url,
+        fileBlobKey: uploadedPdfBlob.pathname,
+        coverURL: coverUrl,
+        fileSize: pdfFile.size,
+      });
+      
+      if(!book.success) throw new Error("Failed to create book");
+
+      if (book.alreadyExists) {
+        toast.info("Book with same title already exists.");
+
+        // Cleanup uploaded blobs to avoid orphaned files
+        const cleanupPromises = [deleteBookBlob(uploadedPdfBlob.url)];
+        if (coverUrl) {
+          cleanupPromises.push(deleteBookBlob(coverUrl));
+        }
+        await Promise.all(cleanupPromises);
+
+        reset();
+
+        const slug = book.data?.slug || (existsCheck && 'book' in existsCheck ? existsCheck.book?.slug : undefined);
+        if (slug) {
+          router.push(`/books/${slug}`);
+        }
+
+        return;
+      }
+      
+      const segments = await saveBookSegments(book.data._id, userId, parsedPDF.content);
+
+      if (!segments.success) {
+        toast.error("Failed to save book segments");
+        throw new Error("Failed to save book segments");
+      }
+
+      reset();
+      router.push('/');
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to upload book. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
+    }
+
   };
+
 
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -87,19 +205,19 @@ const UploadForm = () => {
     if (file) {
       setValue('coverImage', file, { shouldValidate: true });
     } else {
-      setValue('coverImage', null, { shouldValidate: true });
+      setValue('coverImage', undefined, { shouldValidate: true });
     }
   };
 
   const removePdf = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setValue('pdfFile', undefined as any, { shouldValidate: true });
+    setValue('pdfFile', undefined, { shouldValidate: true });
     if (pdfInputRef.current) pdfInputRef.current.value = '';
   };
 
   const removeImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setValue('coverImage', null, { shouldValidate: true });
+    setValue('coverImage', undefined, { shouldValidate: true });
     if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
@@ -220,6 +338,18 @@ const UploadForm = () => {
           {errors.author && <p className="text-red-500 text-sm mt-1">{errors.author.message}</p>}
         </div>
 
+        {/* Persona */}
+        <div className="space-y-2">
+          <label htmlFor="persona" className="form-label">Assistant Persona (Optional)</label>
+          <textarea
+            {...register('persona')}
+            id="persona"
+            placeholder="ex: You are a friendly AI who loves books. You should explain concepts in a simple way."
+            className="form-input min-h-[100px] py-3"
+          />
+          {errors.persona && <p className="text-red-500 text-sm mt-1">{errors.persona.message}</p>}
+        </div>
+
         {/* Voice Selector */}
         <div className="space-y-4">
           <label className="form-label block">Choose Assistant Voice</label>
@@ -257,7 +387,7 @@ const UploadForm = () => {
         {/* Submit Button */}
         <button
           type="submit"
-          className="form-btn w-full bg-[#663820]! text-white font-serif py-4 text-xl shadow-lg transition-all active:scale-[0.98]"
+          className="form-btn w-full !bg-[#663820] text-white font-serif py-4 text-xl shadow-lg transition-all active:scale-[0.98]"
         >
           Begin Synthesis
         </button>
