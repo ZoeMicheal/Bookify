@@ -4,6 +4,7 @@ import {connectToDatabase} from "@/database/mongoose";
 import {generateSlug, serializeData} from "@/lib/utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book.segment.model";
+import { del } from "@vercel/blob";
 
 export const getAllBooks = async () => {
     try {
@@ -114,4 +115,14 @@ export const saveBookSegments = async (bookId: string, clerkId: string, segments
 
     }
 
+}
+
+export const deleteBookBlob = async (url: string) => {
+    try {
+        await del(url);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting blob', error);
+        return { success: false, error };
+    }
 }

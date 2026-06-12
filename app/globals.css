@@ -240,18 +240,15 @@
     @apply w-2 h-2 text-[var(--text-secondary)] bg-[var(--success)] rounded-full animate-pulse;
   }
   .loading-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
+    @apply flex flex-col items-center justify-center p-8 rounded-2xl bg-white shadow-xl gap-4;
   }
 
   .loading-spinner {
-    animation: spin 1s linear infinite;
+    @apply w-12 h-12 animate-spin text-[var(--accent-warm)];
   }
 
   .loading-status {
-    opacity: 0.8;
+    @apply text-base text-[var(--text-secondary)] opacity-80 mt-2 text-center;
   }
   .select-trigger {
     @apply !w-full !h-12 rounded-lg;

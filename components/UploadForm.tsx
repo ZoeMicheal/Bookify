@@ -10,7 +10,7 @@ import LoadingOverlay from '@/components/LoadingOverlay';
 import {cn, parsePDFFile} from '@/lib/utils';
 import {useAuth} from "@clerk/nextjs";
 import { toast } from 'sonner';
-import {checkBookExists, createBook, saveBookSegments} from "@/lib/actions/book.actions";
+import {checkBookExists, createBook, deleteBookBlob, saveBookSegments} from "@/lib/actions/book.actions";
 import {useRouter} from "next/navigation";
 import {upload} from "@vercel/blob/client";
 
@@ -121,7 +121,8 @@ const UploadForm = () => {
       
       if(data.coverImage) {
         const coverFile = data.coverImage;
-        const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, coverFile, {
+        const extension = coverFile.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+        const uploadedCoverBlob = await upload(`${fileTitle}_cover.${extension}`, coverFile, {
           access: 'public',
           handleUploadUrl: '/api/upload',
           contentType: coverFile.type
@@ -154,9 +155,17 @@ const UploadForm = () => {
 
       if (book.alreadyExists) {
         toast.info("Book with same title already exists.");
+
+        // Cleanup uploaded blobs to avoid orphaned files
+        const cleanupPromises = [deleteBookBlob(uploadedPdfBlob.url)];
+        if (coverUrl) {
+          cleanupPromises.push(deleteBookBlob(coverUrl));
+        }
+        await Promise.all(cleanupPromises);
+
         reset();
 
-        const slug = existsCheck?.book?.slug;
+        const slug = book.data?.slug || (existsCheck && 'book' in existsCheck ? existsCheck.book?.slug : undefined);
         if (slug) {
           router.push(`/books/${slug}`);
         }
