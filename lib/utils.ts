@@ -126,7 +126,7 @@ export async function parsePDFFile(file: File) {
       canvas,
       canvasContext: context,
       viewport,
-    } as any).promise;
+    } as any).promise
 
     // Convert canvas to data URL
     const coverDataURL = canvas.toDataURL('image/png');
