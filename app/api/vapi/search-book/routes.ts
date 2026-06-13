@@ -23,7 +23,7 @@ async function processBookSearch(bookId: unknown, query: unknown) {
 
     // Return results
     if (!searchResult.success || !searchResult.data?.length) {
-        return { result: 'No information found about this topic in the book.' };
+        return { result: 'no information found about this topic' };
     }
 
     const combinedText = searchResult.data
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
             const { name, parameters } = functionCall;
             const parsed = parseArgs(parameters);
 
-            if (name === 'searchBook') {
+            if (name === 'searchBook' || name === 'search book') {
                 const result = await processBookSearch(parsed.bookId, parsed.query);
                 return NextResponse.json(result);
             }
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
             const name = func?.name;
             const args = parseArgs(func?.arguments);
 
-            if (name === 'searchBook') {
+            if (name === 'searchBook' || name === 'search book') {
                 const searchResult = await processBookSearch(args.bookId, args.query);
                 results.push({ toolCallId: id, ...searchResult });
             } else {
