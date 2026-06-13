@@ -6,6 +6,7 @@ const BookSchema = new Schema<IBook>({
     title: { type: String, required: true },
     slug: { type: String, unique: true, lowercase: true, trim: true },
     author: { type: String, required: true },
+    voice: { type: String, default: 'rachel' },
     persona: { type: String },
     fileURL: { type: String, required: true },
     fileBlobKey: { type: String, required: true },

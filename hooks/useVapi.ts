@@ -4,7 +4,7 @@ import {useEffect, useRef, useState} from "react";
 import {ASSISTANT_ID, DEFAULT_VOICE, VOICE_SETTINGS} from "@/lib/constants";
 import {endVoiceSession, startVoiceSession} from "@/lib/actions/session.actions";
 import Vapi from '@vapi-ai/web'
-import {getVoice} from "@/lib/utils";
+import { getVoice } from "@/lib/utils";
 
 export type CallStatus = 'idle' | 'connecting' | 'starting' | 'listening' | 'thinking' | 'speaking';
 
@@ -151,7 +151,7 @@ export const useVapi = (book: IBook) => {
         };
     }, []);
 
-    const voice = book.persona || DEFAULT_VOICE
+    const voice = book.voice || DEFAULT_VOICE
 
 
     const isActive = status === 'listening' || status === 'thinking' || status === 'speaking' || status === 'starting';
