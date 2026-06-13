@@ -7,8 +7,9 @@ import Image from "next/image";
 import Transcript from "@/components/Transcript";
 
 const VapiControls = ({ book }: { book: IBook}) => {
-    const {  status, isActive, messages, currentMessage, currentUserMessage, duration, start, stop, clearErrors, } =
-        useVapi(book)
+    const { status, isActive, messages, currentMessage, currentUserMessage, duration,
+        start, stop, clearErrors, limitError, showTimeWarning
+    } = useVapi(book)
 
     const allMessages = [...messages]
     if (currentUserMessage) allMessages.push({ role: 'user', content: currentUserMessage })
@@ -18,8 +19,18 @@ const VapiControls = ({ book }: { book: IBook}) => {
         <>
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* Header card */}
-                <section className="vapi-header-card">
-                    <div className="vapi-cover-wrapper">
+                <section className="vapi-header-card relative">
+                    {limitError && (
+                        <div className="absolute top-0 left-0 right-0 bg-red-100 border-b border-red-200 p-2 text-red-700 text-sm text-center rounded-t">
+                            {limitError}
+                        </div>
+                    )}
+                    {showTimeWarning && !limitError && (
+                        <div className="absolute top-0 left-0 right-0 bg-yellow-100 border-b border-yellow-200 p-2 text-yellow-700 text-sm text-center rounded-t animate-pulse">
+                            Warning: Less than 1 minute remaining in your session.
+                        </div>
+                    )}
+                    <div className="vapi-cover-wrapper mt-8">
                         <Image
                             src={book.coverURL || "/assets/placeholder-cover.png"}
                             alt={book.title}

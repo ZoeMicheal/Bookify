@@ -4,6 +4,8 @@ import {BookCardProps} from "@/types";
 import Image from 'next/image';
 
 
+export const dynamic = 'force-dynamic';
+
 const BookCard = ({ title, author, coverURL, slug } : BookCardProps) => {
     return (
         <Link href={`/books/${slug}`}>
