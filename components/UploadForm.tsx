@@ -17,8 +17,8 @@ import {upload} from "@vercel/blob/client";
 export const UploadSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
   author: z.string().min(1, 'Author name is required').max(100, 'Author name is too long'),
-  persona: z.string().optional(),
   voice: z.string().min(1, 'Please select a voice'),
+  persona: z.string().optional(),
   pdfFile: z.instanceof(File).optional().refine((file) => file !== undefined, { message: "PDF file is required" }).refine((file) => file && file.size <= MAX_FILE_SIZE,
       "File size must be less than 50MB").refine((file) => file && ACCEPTED_PDF_TYPES.includes(file.type), "Only PDF files are accepted"),
   coverImage: z.instanceof(File).optional().refine((file) => {
@@ -51,10 +51,11 @@ const UploadForm = () => {
     defaultValues: {
       title: '',
       author: '',
+      voice: 'rachel',
       persona: '',
       pdfFile: undefined,
       coverImage: undefined,
-      voice: 'rachel',
+
     },
   });
 
@@ -145,6 +146,7 @@ const UploadForm = () => {
         title: data.title,
         author: data.author,
         persona: data.persona,
+        voice: data.voice,
         fileURL: uploadedPdfBlob.url,
         fileBlobKey: uploadedPdfBlob.pathname,
         coverURL: coverUrl,

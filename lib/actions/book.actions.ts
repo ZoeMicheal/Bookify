@@ -6,6 +6,7 @@ import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book.segment.model";
 import { del } from "@vercel/blob";
 import mongoose from "mongoose";
+import {revalidatePath} from "next/cache";
 
 
 export const getAllBooks = async () => {
@@ -69,6 +70,8 @@ export const createBook = async (data: CreateBook) => {
         // Todo: Check subscription limits before creating a book
 
         const book = await Book.create({...data, slug, totalSegments: 0});
+
+        revalidatePath('/')
 
         return {
             success: true,
@@ -164,7 +167,7 @@ export const searchBookSegments = async (bookId: string, query: string, limit: n
         const bookObjectId = new mongoose.Types.ObjectId(bookId);
 
         const segments = await BookSegment.find(
-            { bookId, $text: { $search: query } },
+            { bookId: bookObjectId, $text: { $search: query } },
             { score: { $meta: "textScore" } }
         )
         .sort({ score: { $meta: "textScore" } })

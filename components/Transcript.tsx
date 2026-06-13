@@ -23,7 +23,7 @@ const Transcript = ({ messages, currentMessage, currentUserMessage }: Transcript
 
   if (isEmpty) {
     return (
-      <div className="transcript-container min-h-[400px]">
+      <div className="transcript-container h-[500px]">
         <div className="transcript-empty">
           <Mic className="w-12 h-12 text-[#212a3b] mb-4" />
           <h3 className="transcript-empty-text">No conversation yet</h3>
@@ -52,8 +52,8 @@ const Transcript = ({ messages, currentMessage, currentUserMessage }: Transcript
             >
               {msg.content}
               {(index === messages.length - 1) && (
-                  (msg.role === 'user' && msg.content === currentUserMessage) ||
-                  (msg.role === 'assistant' && msg.content === currentMessage)
+                  (msg.role === 'user' && currentUserMessage) ||
+                  (msg.role === 'assistant' && currentMessage)
               ) && <span className="transcript-cursor" />}
             </div>
           </div>
