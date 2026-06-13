@@ -5,6 +5,8 @@ import {generateSlug, serializeData} from "@/lib/utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book.segment.model";
 import { del } from "@vercel/blob";
+import mongoose from "mongoose";
+
 
 export const getAllBooks = async () => {
     try {
@@ -117,6 +119,32 @@ export const saveBookSegments = async (bookId: string, clerkId: string, segments
 
 }
 
+export const getBookBySlug = async (slug: string) => {
+    try {
+        await connectToDatabase();
+
+        const book = await Book.findOne({slug}).lean();
+
+        if (!book) {
+            return {
+                success: false,
+                error: 'Book not found'
+            }
+        }
+
+        return {
+            success: true,
+            data: serializeData(book)
+        }
+    } catch (e) {
+        console.error('Error fetching book by slug', e);
+        return {
+            success: false,
+            error: e
+        }
+    }
+}
+
 export const deleteBookBlob = async (url: string) => {
     try {
         await del(url);
@@ -124,5 +152,34 @@ export const deleteBookBlob = async (url: string) => {
     } catch (error) {
         console.error('Error deleting blob', error);
         return { success: false, error };
+    }
+}
+
+export const searchBookSegments = async (bookId: string, query: string, limit: number = 3) => {
+    try {
+        await connectToDatabase();
+
+        console.log(`Searching for: "${query}" in book ${bookId}`);
+
+        const bookObjectId = new mongoose.Types.ObjectId(bookId);
+
+        const segments = await BookSegment.find(
+            { bookId, $text: { $search: query } },
+            { score: { $meta: "textScore" } }
+        )
+        .sort({ score: { $meta: "textScore" } })
+        .limit(limit)
+        .lean();
+
+        return {
+            success: true,
+            data: serializeData(segments)
+        }
+    } catch (e) {
+        console.error('Error searching book segments', e);
+        return {
+            success: false,
+            error: e
+        }
     }
 }
