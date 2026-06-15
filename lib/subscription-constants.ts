@@ -5,14 +5,14 @@ export const getCurrentBillingPeriodStart = (): Date => {
 
 export const PLAN_LIMITS = {
     FREE: {
-        maxDurationMinutes: 10,
-        maxSessionsPerPeriod: 5,
-        maxConcurrentSessions: 1,
+        maxDurationMinutes: Infinity,
+        maxSessionsPerPeriod: Infinity,
+        maxConcurrentSessions: Infinity,
     },
     PRO: {
-        maxDurationMinutes: 60,
-        maxSessionsPerPeriod: 100,
-        maxConcurrentSessions: 2,
+        maxDurationMinutes: Infinity,
+        maxSessionsPerPeriod: Infinity,
+        maxConcurrentSessions: Infinity,
     }
 };
 

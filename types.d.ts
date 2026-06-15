@@ -46,6 +46,7 @@ export interface IVoiceSession extends Document {
     endedAt?: Date;
     durationSeconds: number;
     billingPeriodStart: Date;
+    transcript?: Messages[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -77,6 +78,7 @@ export interface TextSegment {
 }
 
 export interface BookCardProps {
+    id: string;
     title: string;
     author: string;
     coverURL: string;

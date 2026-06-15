@@ -19,7 +19,11 @@ const Transcript = ({ messages, currentMessage, currentUserMessage }: Transcript
     }
   }, [messages, currentMessage, currentUserMessage]);
 
-  const isEmpty = messages.length === 0 && !currentMessage && !currentUserMessage;
+  const allMessages = [...messages];
+  if (currentUserMessage) allMessages.push({ role: 'user', content: currentUserMessage });
+  if (currentMessage) allMessages.push({ role: 'assistant', content: currentMessage });
+
+  const isEmpty = allMessages.length === 0;
 
   if (isEmpty) {
     return (
@@ -38,26 +42,32 @@ const Transcript = ({ messages, currentMessage, currentUserMessage }: Transcript
   return (
     <div className="transcript-container h-[500px]">
       <div className="transcript-messages" ref={scrollRef}>
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`transcript-message ${
-              msg.role === 'user' ? 'transcript-message-user' : 'transcript-message-assistant'
-            }`}
-          >
+        {allMessages.map((msg, index) => {
+          const isUser = msg.role === 'user';
+          const isLast = index === allMessages.length - 1;
+          const isTyping = isLast && (
+            (isUser && currentUserMessage) ||
+            (!isUser && currentMessage)
+          );
+
+          return (
             <div
-              className={`transcript-bubble ${
-                msg.role === 'user' ? 'transcript-bubble-user' : 'transcript-bubble-assistant'
+              key={index}
+              className={`transcript-message ${
+                isUser ? 'transcript-message-user' : 'transcript-message-assistant'
               }`}
             >
-              {msg.content}
-              {(index === messages.length - 1) && (
-                  (msg.role === 'user' && currentUserMessage) ||
-                  (msg.role === 'assistant' && currentMessage)
-              ) && <span className="transcript-cursor" />}
+              <div
+                className={`transcript-bubble ${
+                  isUser ? 'transcript-bubble-user' : 'transcript-bubble-assistant'
+                }`}
+              >
+                {msg.content}
+                {isTyping && <span className="transcript-cursor" />}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

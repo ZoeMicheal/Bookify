@@ -12,7 +12,7 @@ const Page = async () => {
 
             <div className="library-books-grid">
                 {books.map((book) => (
-                    <BookCard key={book._id} title={book.title} author={book.author} coverURL={book.coverURL || "/placeholder.png"}
+                    <BookCard key={book._id} id={book._id} title={book.title} author={book.author} coverURL={book.coverURL || "/placeholder.png"}
                     slug={book.slug}/>
                 ))}
             </div>
