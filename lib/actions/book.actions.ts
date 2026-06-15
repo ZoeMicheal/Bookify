@@ -1,7 +1,7 @@
 'use server';
 import {CreateBook, TextSegment} from "@/types";
 import {connectToDatabase} from "@/database/mongoose";
-import {generateSlug, serializeData} from "@/lib/utils";
+import {generateSlug, serializeData, escapeRegex} from "@/lib/utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book.segment.model";
 import { del } from "@vercel/blob";
@@ -9,11 +9,22 @@ import mongoose from "mongoose";
 import {revalidatePath} from "next/cache";
 
 
-export const getAllBooks = async () => {
+export const getAllBooks = async (query?: string) => {
     try {
         await connectToDatabase();
 
-        const books = await Book.find({}).sort({createdAt: -1}).lean();
+        let filter = {};
+        if (query) {
+            const regex = new RegExp(escapeRegex(query), 'i');
+            filter = {
+                $or: [
+                    { title: { $regex: regex } },
+                    { author: { $regex: regex } }
+                ]
+            };
+        }
+
+        const books = await Book.find(filter).sort({createdAt: -1}).lean();
 
         return {
             success: true,
