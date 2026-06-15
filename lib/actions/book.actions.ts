@@ -158,6 +158,38 @@ export const deleteBookBlob = async (url: string) => {
     }
 }
 
+export const deleteBook = async (bookId: string) => {
+    try {
+        await connectToDatabase();
+
+        const book = await Book.findById(bookId);
+
+        if (!book) {
+            return { success: false, error: 'Book not found' };
+        }
+
+        // 1. Delete blobs from Vercel storage
+        const deleteBlobs = [];
+        if (book.fileURL) deleteBlobs.push(del(book.fileURL));
+        if (book.coverURL) deleteBlobs.push(del(book.coverURL));
+
+        await Promise.all(deleteBlobs);
+
+        // 2. Delete book segments from database
+        await BookSegment.deleteMany({ bookId });
+
+        // 3. Delete book from database
+        await Book.findByIdAndDelete(bookId);
+
+        revalidatePath('/');
+
+        return { success: true };
+    } catch (e) {
+        console.error('Error deleting book', e);
+        return { success: false, error: e };
+    }
+}
+
 export const searchBookSegments = async (bookId: string, query: string, limit: number = 3) => {
     try {
         await connectToDatabase();

@@ -7,13 +7,7 @@ import Image from "next/image";
 import Transcript from "@/components/Transcript";
 
 const VapiControls = ({ book }: { book: IBook}) => {
-    const { status, isActive, messages, currentMessage, currentUserMessage, duration,
-        start, stop, clearErrors, limitError, showTimeWarning
-    } = useVapi(book)
-
-    const allMessages = [...messages]
-    if (currentUserMessage) allMessages.push({ role: 'user', content: currentUserMessage })
-    if (currentMessage) allMessages.push({ role: 'assistant', content: currentMessage })
+    const { status, isActive, messages, currentMessage, currentUserMessage, duration, start, stop, clearErrors, limitError, showTimeWarning } = useVapi(book)
 
     return (
         <>
@@ -21,12 +15,12 @@ const VapiControls = ({ book }: { book: IBook}) => {
                 {/* Header card */}
                 <section className="vapi-header-card relative">
                     {limitError && (
-                        <div className="absolute top-0 left-0 right-0 bg-red-100 border-b border-red-200 p-2 text-red-700 text-sm text-center rounded-t">
+                        <div className="absolute top-0 left-0 right-0 bg-red-100 border-b border-red-200 p-2 text-red-700 text-sm text-center rounded-t z-20">
                             {limitError}
                         </div>
                     )}
                     {showTimeWarning && !limitError && (
-                        <div className="absolute top-0 left-0 right-0 bg-yellow-100 border-b border-yellow-200 p-2 text-yellow-700 text-sm text-center rounded-t animate-pulse">
+                        <div className="absolute top-0 left-0 right-0 bg-yellow-100 border-b border-yellow-200 p-2 text-yellow-700 text-sm text-center rounded-t animate-pulse z-20">
                             Warning: Less than 1 minute remaining in your session.
                         </div>
                     )}
@@ -36,22 +30,23 @@ const VapiControls = ({ book }: { book: IBook}) => {
                             alt={book.title}
                             width={120}
                             height={180}
-                            className="vapi-cover-image rounded shadow-lg"
+                            className="vapi-cover-image rounded shadow-lg object-cover"
                             priority
                         />
                         <div className="vapi-mic-wrapper">
-                            {(status === 'speaking' || status === 'thinking') && (
+                            {(status === 'speaking' || status === 'thinking' || status === 'listening') && (
                                 <div className="vapi-pulse-ring" />
                             )}
                             <button
                                 onClick={isActive ? stop : start}
                                 disabled={status === 'connecting'}
                                 className={`vapi-mic-btn ${isActive ? 'vapi-mic-btn-active' : 'vapi-mic-btn-inactive'}`}
+                                aria-label={isActive ? "Stop call" : "Start call"}
                             >
                                 {isActive ? (
                                     <Mic className="w-6 h-6 text-[#212a3b] animate-pulse" />
                                 ) : (
-                                    <MicOff className="w-6 h-6 text-[#212a3b]" />
+                                    <Mic className="w-6 h-6 text-[#212a3b]" />
                                 )}
                             </button>
                         </div>
@@ -67,12 +62,17 @@ const VapiControls = ({ book }: { book: IBook}) => {
 
                         <div className="flex flex-wrap gap-2">
                             <div className="vapi-status-indicator">
-                                <span className={`vapi-status-dot ${isActive ? 'vapi-status-dot-active' : 'vapi-status-dot-ready'}`} />
+                                <span className={`vapi-status-dot vapi-status-dot-${status}`} />
                                 <span className="vapi-status-text">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                             </div>
                             <div className="vapi-status-indicator">
-                                <span className="vapi-status-text">Voice: {book.persona || "Default"}</span>
+                                <span className="vapi-status-text">Voice: {book.voice}</span>
                             </div>
+                            {book.persona && (
+                                <div className="vapi-status-indicator">
+                                    <span className="vapi-status-text">Persona: {book.persona}</span>
+                                </div>
+                            )}
                             <div className="vapi-status-indicator">
                                 <span className="vapi-status-text">{Math.floor(duration / 60)}:{String(duration % 60).padStart(2, '0')}/15:00</span>
                             </div>
@@ -82,7 +82,7 @@ const VapiControls = ({ book }: { book: IBook}) => {
 
                 <div className="vapi-transcript-wrapper">
                     <Transcript
-                        messages={allMessages}
+                        messages={messages}
                         currentMessage={currentMessage}
                         currentUserMessage={currentUserMessage}
                     />

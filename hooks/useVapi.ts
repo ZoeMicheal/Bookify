@@ -50,6 +50,7 @@ export const useVapi = (book: IBook) => {
 
     const bookRef = useLatestRef(book);
     const durationRef = useLatestRef(duration);
+    const messagesRef = useLatestRef(messages);
 
     useEffect(() => {
         const vapiInstance = getVapi();
@@ -60,10 +61,11 @@ export const useVapi = (book: IBook) => {
 
             const sessionId = sessionIdRef.current;
             const finalDuration = durationRef.current;
+            const finalTranscript = messagesRef.current;
 
             if (sessionId) {
                 try {
-                    await endVoiceSession(sessionId, finalDuration);
+                    await endVoiceSession(sessionId, finalDuration, finalTranscript);
                 } catch (e) {
                     console.error('Error finalizing session', e);
                 }
@@ -75,6 +77,16 @@ export const useVapi = (book: IBook) => {
             }
             sessionIdRef.current = null;
         };
+
+        const handleBeforeUnload = () => {
+            if (sessionIdRef.current) {
+                // We can't await here as the page is closing
+                // But we can try to send it anyway
+                endVoiceSession(sessionIdRef.current, durationRef.current, messagesRef.current).catch(console.error);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
 
         vapiInstance.on('call-start', () => {
             setStatus('listening');
@@ -136,12 +148,26 @@ export const useVapi = (book: IBook) => {
         });
 
         vapiInstance.on('error', (e) => {
-            console.error('Vapi error', e);
+            console.error('Vapi error detail:', JSON.stringify(e, null, 2));
             setStatus('idle');
-            setLimitError('A connection error occurred');
+            
+            // Safely extract error message
+            let errorMessage = 'A connection error occurred';
+            if (typeof e === 'string') {
+                errorMessage = e;
+            } else if (e && typeof e === 'object') {
+                errorMessage = (e as any).message || (e as any).error || errorMessage;
+                // If it's still an object (e.g., found: object with keys {message, data, error})
+                if (typeof errorMessage === 'object') {
+                    errorMessage = (errorMessage as any).message || JSON.stringify(errorMessage);
+                }
+            }
+            
+            setLimitError(errorMessage);
         });
 
         return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
             if (timerRef.current) {
                 clearInterval(timerRef.current);
                 timerRef.current = null;
@@ -154,13 +180,13 @@ export const useVapi = (book: IBook) => {
     const voice = book.voice || DEFAULT_VOICE
 
 
-    const isActive = status === 'listening' || status === 'thinking' || status === 'speaking' || status === 'starting';
+    const isActive = status === 'listening' || status === 'thinking' || status === 'speaking';
 
     const MAX_DURATION_SECONDS = 15 * 60;
     const remainingSeconds = Math.max(0, MAX_DURATION_SECONDS - duration);
 
     const start = async () => {
-        if (isStartingRef.current || status === 'connecting') return;
+        if (isStartingRef.current || status === 'connecting' || status === 'starting' || isActive) return;
         if(!userId) return setLimitError('Please login to start a conversation');
 
         setLimitError(null);
@@ -171,7 +197,11 @@ export const useVapi = (book: IBook) => {
             const result = await startVoiceSession(userId, book._id)
 
             if(!result.success) {
-                setLimitError(result.error || 'Session limit reached. Please upgrade your plan or try again later.');
+                let errorMsg = result.error || 'Session limit reached. Please upgrade your plan or try again later.';
+                if (typeof errorMsg !== 'string') {
+                    errorMsg = (errorMsg as any)?.message || JSON.stringify(errorMsg);
+                }
+                setLimitError(errorMsg);
                 setStatus('idle');
                 return;
             }
@@ -180,27 +210,68 @@ export const useVapi = (book: IBook) => {
 
             const firstMessage = `Hey, nice to meet you. Quick question, before we dive in: have you actually read ${book.title} yet? Or are we starting fresh?`
 
-            await getVapi().start(ASSISTANT_ID, {
+            console.log('Starting Vapi with Assistant ID:', ASSISTANT_ID);
+            if (!ASSISTANT_ID) {
+                console.warn('ASSISTANT_ID is empty, Vapi might fail or use a default assistant if configured.');
+            }
+
+            const vapiOptions = {
                 firstMessage,
                 variableValues: {
-                    title: book.title, author: book.author, bookId: book._id
+                    title: book.title,
+                    author: book.author,
+                    bookId: book._id
                 },
-                // voice: {
-                //     provider: '11labs' as const,
-                //     voiceId: getVoice(voice).id,
-                //     model: "eleven_turbo_v2_5" as const,
-                //     stability: VOICE_SETTINGS.stability,
-                //     similarityBoost: VOICE_SETTINGS.similarityBoost,
-                //     style: VOICE_SETTINGS.style,
-                //     useSpeakerBoost: VOICE_SETTINGS.useSpeakerBoost,
-                // }
-            })
+                voice: {
+                    provider: '11labs' as const,
+                    voiceId: getVoice(voice).id,
+                    model: "eleven_turbo_v2_5" as const,
+                    stability: VOICE_SETTINGS.stability,
+                    similarityBoost: VOICE_SETTINGS.similarityBoost,
+                    style: VOICE_SETTINGS.style,
+                    useSpeakerBoost: VOICE_SETTINGS.useSpeakerBoost,
+                },
+                model: {
+                    provider: "openai" as const,
+                    model: "gpt-4o" as const,
+                    messages: [
+                        {
+                            role: "system" as const,
+                            content: book.persona || "You are a helpful assistant."
+                        }
+                    ]
+                }
+            };
 
+            const vapiInstance = getVapi();
+            console.log('Calling vapi.start() with ASSISTANT_ID:', ASSISTANT_ID || 'not-provided');
+            
+            let startPromise;
+            try {
+                startPromise = vapiInstance.start(ASSISTANT_ID, vapiOptions);
+            } catch (syncError: any) {
+                console.error('vapi.start() threw synchronously:', syncError);
+                throw syncError || new Error('Vapi failed to start (sync error)');
+            }
 
-        } catch (e) {
-            console.error('Error starting call', e);
+            try {
+                if (!startPromise || typeof startPromise.then !== 'function') {
+                    console.log('vapi.start() did not return a promise, continuing...');
+                } else {
+                    await startPromise;
+                }
+            } catch (startError: any) {
+                console.error('vapi.start() rejected:', startError);
+                // If the promise rejects with undefined, we still want to handle it
+                throw startError || new Error('Vapi failed to start (async error)');
+            }
+            console.log('vapi.start() execution finished');
+
+        } catch (e: any) {
+            console.error('Error starting call:', e);
             setStatus('idle');
-            setLimitError('An Error occurred while starting the call');
+            const errorMessage = e?.message || (typeof e === 'string' ? e : null) || 'An Error occurred while starting the call';
+            setLimitError(errorMessage);
         } finally {
             isStartingRef.current = false;
         }
